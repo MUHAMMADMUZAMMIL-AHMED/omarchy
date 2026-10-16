@@ -103,10 +103,13 @@ fetch_site_icon() {
   # Google's fallback wants a bare hostname. ${origin#*://} still carries
   # user:password@, any :port and the whole ?query, so building the request
   # from it would hand all of that to Google every time the site's own icon
-  # downloads fail.
+  # downloads fail. Cut at the query before stripping userinfo: ##*@ is
+  # greedy, and a query can hold an @ with no / before the ?, so stripping
+  # first drops everything up to the last @. Userinfo cannot contain /, ? or
+  # #, so the query cut can never eat into it and this order is always safe.
   local google_domain=${origin#*://}
-  google_domain=${google_domain##*@}
   google_domain=${google_domain%%[/?#]*}
+  google_domain=${google_domain##*@}
   if [[ $google_domain == \[* ]]; then
     # A bracketed IPv6 literal keeps its closing bracket; only :port goes.
     google_domain=${google_domain%%\]*}\]

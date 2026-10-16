@@ -109,6 +109,31 @@ done
 rm -f "$tmpdir/fail-downloads"
 pass "the Google favicon fallback sends only the hostname"
 
+# A query can hold an @ while no / precedes the ?, so the extraction has to
+# cut the query before it strips userinfo. Stripping first, ##*@ being
+# greedy, hands Google everything up to the last @ in the URL.
+: >"$tmpdir/curl-log"
+touch "$tmpdir/fail-downloads"
+
+if install_webapp "Query App" "https://example.com?next=me@mail.example.org" "" \
+  >"$tmpdir/out" 2>"$tmpdir/err"; then
+  fail "an install whose icon downloads fail reports the failure"
+fi
+
+google_line=$(grep -F 'google.com/s2/favicons' "$tmpdir/curl-log" || true)
+[[ -n $google_line ]] ||
+  fail "the icon chain reaches the Google fallback for a query URL" "$(cat "$tmpdir/curl-log")"
+
+[[ $google_line == *'domain=example.com&sz=256'* ]] ||
+  fail "the Google fallback cuts the query before the userinfo" "$google_line"
+
+if [[ $google_line == *'mail.example.org'* ]]; then
+  fail "the Google fallback used an @ from the query as the userinfo delimiter" "$google_line"
+fi
+
+rm -f "$tmpdir/fail-downloads"
+pass "the Google favicon fallback cuts the query before the userinfo"
+
 # The same extraction has to survive a bracketed IPv6 host, where the port
 # separator is ]: and not just the first colon inside the address.
 : >"$tmpdir/curl-log"
